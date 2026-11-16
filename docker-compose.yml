@@ -9,6 +9,18 @@ services:
       - ./db/init:/docker-entrypoint-initdb.d:ro,z
     restart: unless-stopped
 
+  dmz-web1:
+    build: ./docker/web
+    container_name: dmz-web1
+    ports:
+      - "8080:80"
+    volumes:
+      - ./web:/var/www/html:z
+      - uploads:/var/www/html/uploads
+    depends_on:
+      - intra-db
+    restart: unless-stopped
+
 volumes:
   db-data:
-
+  uploads:
