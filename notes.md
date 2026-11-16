@@ -19,3 +19,8 @@
 - a1 이름 충돌: sleep을 slepp으로 오타 → Created 상태로 멈춤 → docker rm -f 후 재생성
 - compose pull access denied: 이미지 이름 오타(ngnix) → nginx로 수정
 - git commit 후 > 프롬프트에서 멈춤: 앞쪽 따옴표 누락 → Ctrl+C 후 다시 입력
+
+## 11/16 intra-db (11/18 일정 앞당겨 수행)
+- mariadb:10.11 + est_bank.sql 자동 실행, est_user는 .env로 생성, 한글 정상
+- 겪은 문제: Access denied → 비밀번호 오타(-p123345678)
+- 배운 점: db/init의 SQL은 볼륨이 비어 있을 때만 실행됨, down -v는 데이터까지 삭제
