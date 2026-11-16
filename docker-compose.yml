@@ -1,0 +1,14 @@
+services:
+  intra-db:
+    image: mariadb:10.11
+    container_name: intra-db
+    env_file: .env
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci
+    volumes:
+      - db-data:/var/lib/mysql
+      - ./db/init:/docker-entrypoint-initdb.d:ro,z
+    restart: unless-stopped
+
+volumes:
+  db-data:
+
