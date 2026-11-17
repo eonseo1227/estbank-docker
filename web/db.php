@@ -1,5 +1,5 @@
 <?php
-$host = 'intra-db'; // 예: 192.168.x.x
+$host = '192.168.153.103'; // 예: 192.168.x.x
 $user = 'est_user';
 $pass = '12345678';
 $dbname = 'est_bank';

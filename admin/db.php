@@ -1,5 +1,5 @@
 <?php
-$host = 'localhost';
+$host = 'intra-db';
 $user = 'est_user';
 $pass = '12345678';
 $dbname = 'est_bank';
