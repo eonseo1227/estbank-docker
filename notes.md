@@ -24,3 +24,15 @@
 - mariadb:10.11 + est_bank.sql 자동 실행, est_user는 .env로 생성, 한글 정상
 - 겪은 문제: Access denied → 비밀번호 오타(-p123345678)
 - 배운 점: db/init의 SQL은 볼륨이 비어 있을 때만 실행됨, down -v는 데이터까지 삭제
+## 11/16 dmz-web1 (11/19 일정 앞당겨 수행)
+- php:8.0-apache + mysqli, 운영용 php.ini 사용 (2차 Rocky 9 PHP 8.0과 버전 맞춤)
+- db.php 호스트: 192.168.219.109 → intra-db (컨테이너 이름으로 접속)
+- uploads는 볼륨으로 분리 (2차 NFS 대체), 소유자 www-data
+- 확인: 회원가입, 로그인, 게시판 글쓰기·첨부, mypage 정상
+- 겪은 문제: dmz-web1이 안 뜸: vi에서 docker-compose.yml 수정 후 저장이 안 됨 → 파일 다시 작성
+- YAML 에러(L2.C9 mapping values are not allowed): cat <<'EOF' 명령을 vi 안에 붙여 넣어 명령어 줄과 EOF 줄이 파일에 들어감 → sed로 첫 줄·마지막 줄 삭제
+- 배운 점
+- 파일을 고친 뒤에는 cat으로 내용이 제대로 저장됐는지 먼저 확인하기
+- YAML 에러는 표시된 줄보다 바로 윗줄이 원인인 경우가 많음
+- cat -A를 쓰면 줄 끝($)이나 탭(^I)처럼 눈에 안 보이는 문자까지 확인할 수 있음
+- cat > 파일 <<'EOF' 명령은 vi 안이 아니라 터미널 프롬프트에 바로 붙여 넣어야 함

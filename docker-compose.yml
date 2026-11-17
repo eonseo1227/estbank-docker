@@ -12,15 +12,38 @@ services:
   dmz-web1:
     build: ./docker/web
     container_name: dmz-web1
-    ports:
-      - "8080:80"
     volumes:
       - ./web:/var/www/html:z
       - uploads:/var/www/html/uploads
+      - sessions:/var/lib/php/sessions
     depends_on:
       - intra-db
+    restart: unless-stopped
+
+  dmz-web2:
+    build: ./docker/web
+    container_name: dmz-web2
+    volumes:
+      - ./web:/var/www/html:z
+      - uploads:/var/www/html/uploads
+      - sessions:/var/lib/php/sessions
+    depends_on:
+      - intra-db
+    restart: unless-stopped
+
+  dmz-lb:
+    image: nginx:stable
+    container_name: dmz-lb
+    ports:
+      - "8080:80"
+    volumes:
+      - ./docker/lb/default.conf:/etc/nginx/conf.d/default.conf:ro,z
+    depends_on:
+      - dmz-web1
+      - dmz-web2
     restart: unless-stopped
 
 volumes:
   db-data:
   uploads:
+  sessions:
