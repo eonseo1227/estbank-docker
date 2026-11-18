@@ -52,4 +52,20 @@
 - 로드밸런서 뒤에서는 첨부파일(uploads)과 로그인 정보(sessions)를 볼륨으로 공유해야 서버가 바뀌어도 동작함
 - Nginx는 시작할 때 upstream 이름을 찾기 때문에, web이 꺼진 상태에서 lb를 재시작하면 실패함
 
-
+## 11/17 intra-web, 네트워크 분리 (11/21 일정 앞당겨 수행)
+- 네트워크 3개: outside 192.168.156.0/24, dmz 155.0/24, intra 153.0/24 (2차 대역 유지)
+- 고정 IP: lb 155.10, web1 155.200, web2 155.201, db 153.103, intra-web 153.110
+- intra-web: 관리자 소스 + uploads 볼륨 공유, 확인용으로 8081 임시 공개 (2주차에 제한)
+- web/db.php: intra-db → 192.168.153.103 (Docker DNS는 같은 네트워크 안에서만 이름을 찾음)
+- admin/db.php: localhost → intra-db (같은 intra 망)
+- 확인: dmz-web1에서 DB 접속 불가(망분리 정상), 관리자 웹은 DB 접속 가능
+- 겪은 문제:- outside 네트워크 inspect 시 "network estbank-docker_outside not found"
+  - 원인: compose는 서비스가 연결된 네트워크만 만듦. outside에 붙은 컨테이너가 아직 없어서 생성 안 됨 (정상)
+- 예전 기본 네트워크 estbank-docker_default가 남아 있음
+  - 원인: 네트워크 구조를 바꾸기 전 모든 컨테이너가 쓰던 기본 네트워크가 사용되지 않은 채 남음
+  - 해결: docker network rm estbank-docker_default
+-배운 점
+- Docker DNS는 같은 네트워크 안에서만 컨테이너 이름을 찾음 → 망이 다르면 IP로 접속해야 함 (web/db.php를 다시 192.168.153.103으로)
+- 망을 나누면 웹(dmz)에서 DB(intra)로 가는 길이 끊김 → 망분리가 제대로 된 증거, fw로 필요한 포트(3306)만 다시 열어야 함
+- compose는 정의만 하고 쓰지 않은 네트워크는 만들지 않음
+- 네트워크 구조를 바꿀 때는 down → up으로 다시 만들되, -v를 빼면 DB·첨부파일 볼륨은 그대로 남음

@@ -1,4 +1,21 @@
 services:
+  fw:
+    build: ./docker/fw
+    container_name: fw
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    sysctls:
+      - net.ipv4.ip_forward=1
+    networks:
+      outside:
+        ipv4_address: 192.168.156.254
+      dmz:
+        ipv4_address: 192.168.155.254
+      intra:
+        ipv4_address: 192.168.153.254
+    restart: unless-stopped
+
   intra-db:
     image: mariadb:10.11
     container_name: intra-db
