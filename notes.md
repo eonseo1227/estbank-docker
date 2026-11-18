@@ -69,3 +69,39 @@
 - 망을 나누면 웹(dmz)에서 DB(intra)로 가는 길이 끊김 → 망분리가 제대로 된 증거, fw로 필요한 포트(3306)만 다시 열어야 함
 - compose는 정의만 하고 쓰지 않은 네트워크는 만들지 않음
 - 네트워크 구조를 바꿀 때는 down → up으로 다시 만들되, -v를 빼면 DB·첨부파일 볼륨은 그대로 남음
+
+## 11/18 fw 컨테이너 1: 라우팅 (11/23 일정 앞당겨 수행)
+
+### 한 일
+- fw 이미지: alpine:3.20 + iproute2, iptables, tcpdump (CMD sleep infinity로 계속 실행)
+- fw를 outside·dmz·intra 세 망에 .254로 연결 (2차 pfSense 인터페이스 주소와 동일)
+  - fw 인터페이스: eth? = outside(156.254), eth? = dmz(155.254), eth? = intra(153.254)
+- fw에만 cap_add NET_ADMIN·NET_RAW 부여 (최소 권한), sysctl net.ipv4.ip_forward=1로 라우터 역할
+- scripts/routes.sh: nsenter로 각 컨테이너 네트워크에 들어가 다른 망 경로를 fw로 지정
+  - dmz 컨테이너: 153.0/24, 156.0/24 → 155.254
+  - intra 컨테이너: 155.0/24, 156.0/24 → 153.254
+- 확인
+  - dmz-web1 → intra-db 3306 연결 성공 (fsockopen → resource)
+  - 브라우저 8080에서 est_bank 다시 정상 동작
+  - tcpdump: 패킷이 dmz 쪽 In → intra 쪽 Out으로 fw를 통과 (결과: )
+  - fw 중지 시 웹→DB 끊김 → fw 외에 다른 길이 없음 (결과: )
+
+### 겪은 문제
+- VMware "This virtual machine appears to be in use"
+  - 원인: VM이 켜진 채 VMware/PC가 종료되어 잠금 파일(.lck)이 남음
+  - 해결: 다른 곳에서 실행 중이 아닌 것 확인 후 Take Ownership
+- compose up 시 "did not find expected key (L3~L17)"
+  - 원인: vi에 fw 블록을 붙여 넣으면서 들여쓰기가 어긋남
+  - 해결: cat <<'EOF'로 compose 파일 전체 재작성, docker compose config --quiet로 문법 검사
+- 경로 설정 후에도 웹→DB 실패 (bool(false))
+  - 확인: intra-db의 ip route에 155.0/24 via 153.254가 없음 → 요청은 갔지만 응답이 돌아오지 못함
+  - 원인 1: routes.sh 붙여 넣을 때 뒷부분(intra 반복문)이 잘려 저장됨 → 출력이 6줄뿐
+  - 원인 2: 다시 만들 때 cat > ... <<'EOF' 명령 줄이 파일 첫 줄에 들어감 → "here-document" 경고
+  - 해결: 파일 재작성 후 sed -i '1d'로 첫 줄 삭제, cat -n으로 21줄 확인, 재실행 시 10줄 출력
+
+### 배운 점
+- 라우팅은 갈 때와 올 때 양쪽 모두 필요함. 한쪽만 있으면 요청은 가도 응답이 사라짐
+- 컨테이너가 재시작·재생성되면 routes.sh로 넣은 경로가 사라짐 → 항상 "docker compose up -d && ./scripts/routes.sh"
+- 스크립트 출력 줄 수가 예상과 다르면 cat -n으로 파일 내용부터 확인
+- compose 파일을 고치면 up 전에 docker compose config --quiet로 문법부터 검사
+- cat <<'EOF' 블록은 vi 안이 아니라 [root@docker1 ...]# 프롬프트에 붙여 넣기
