@@ -105,3 +105,91 @@
 - 스크립트 출력 줄 수가 예상과 다르면 cat -n으로 파일 내용부터 확인
 - compose 파일을 고치면 up 전에 docker compose config --quiet로 문법부터 검사
 - cat <<'EOF' 블록은 vi 안이 아니라 [root@docker1 ...]# 프롬프트에 붙여 넣기
+## 11/24 fw iptables 방화벽 규칙
+### 한 일
+- FORWARD 기본 정책 DROP + ESTABLISHED,RELATED 허용 (상태 기반, 2차 pfSense와 같은 방식)
+- 허용 규칙: 외부→lb:80, web1·web2→db:3306 (매트릭스 1·5번), 나머지는 기본 정책으로 차단
+- docker/fw/rules.sh 바인드 마운트, fw 시작 시 자동 적용
+- scripts/test-matrix.sh 작성: bash /dev/tcp로 연결 시험
+- 적용 전: 차단 대상 줄이 모두 허용됨(FAIL) → 적용 후: 전부 OK
+### 겪은 문제
+- sed로 compose에 command·volumes 삽입 → YAML 에러: 들여쓰기 어긋남 → 파일 전체 재작성
+- docker.compose.yml(점) 옛날 파일이 따로 있었음 → 삭제
+### 배운 점
+- YAML은 줄 삽입보다 전체 재작성이 안전, up 전에 docker compose config --quiet로 검사
+
+## 11/25 Kali 공격자 + Suricata IDS
+### 한 일
+- Kali 컨테이너를 outside(156.123)에 추가, nmap·hping3 설치, cap_add 세 개(NET_RAW·NET_ADMIN·NET_BIND_SERVICE)
+- fw에 Suricata 설치, 탐지 규칙 3종(nmap 스캔·SYN Flood·SQL 인젝션)을 2차 규칙 기반으로 작성
+- scripts/start.sh: 방화벽 규칙 적용 + Suricata 실행을 하나로
+- nmap 스캔 → fast.log·eve.json에 LAB NMAP SYN Scan 탐지 확인
+### 겪은 문제
+- Kali 빌드 실패 1: iputils-ping 오타 + \ 뒤 공백으로 패키지명 깨짐 → RUN을 한 줄로
+- Kali 빌드 실패 2: 미러 SSL 인증서 오류 → sources.list를 kali.download(http)로 고정
+- nmap "Operation not permitted": nmap이 세 권한을 요구 → kali에 cap_add 세 개
+- tail -f가 터미널을 붙잡아 다음 명령 안 됨 → Ctrl+C 후 -f 없이
+- Suricata 안 뜸 1: -i any가 안 됨 → 실제 eth 인터페이스 지정
+- Suricata 안 뜸 2: eth0@if 형태라 못 읽음 → /sys/class/net으로 깨끗한 이름
+- Suricata 안 뜸 3: 낡은 pidfile 남아 abort → start.sh에서 rm -f 추가
+### 배운 점
+- 파일 권한(capability)이 걸린 프로그램은 요구 권한이 하나라도 빠지면 실행 자체가 안 됨
+- 로그 안 쌓이면 1)트래픽이 닿는지 2)프로세스가 떴는지 3)로그 경로 순으로 확인
+
+## 11/26 Elasticsearch + Kibana
+### 한 일
+- intra-elk(ES 8.15.3, 153.102), kibana(5601) 추가, 보안 비활성화(xpack.security.enabled=false)로 랩 단순화
+- ES 메모리 512m 제한, 재부팅 대비 vm.max_map_count=262144 설정
+- curl 9200 응답 확인(cluster GREEN), 브라우저 5601 Welcome 화면 확인
+### 배운 점
+- Elasticsearch는 vm.max_map_count를 미리 올려야 시작됨
+- 2차에서 고생한 인증서·토큰을 랩에서는 보안 비활성화로 단순화(실무는 켜야 함)
+
+## 11/27 Filebeat 로그 연결
+### 한 일
+- suricata-logs 볼륨으로 fw와 공유, filebeat(8.15.3)가 eve.json을 읽어 ES로 전송
+- Kibana 데이터 뷰 suricata-* 생성, Discover에서 event_type:alert 조회
+- 필드 추가(alert.signature, src_ip)로 표 정리
+- Top values 분석: NMAP SYN Scan 53% / TCP SYN Flood 47%, 공격 출발지 192.168.156.123 100%
+### 겪은 문제
+- grep에 event type(공백)으로 쳐서 0 → event_type(밑줄)
+- curl URL 앞 공백으로 400 에러 → 공백 제거
+### 배운 점
+- eve.json에는 alert 외에 flow·stats 등 여러 event_type이 섞임, 필요한 건 event_type:alert로 거름
+- Suricata→Filebeat→Elasticsearch→Kibana 로그 파이프라인 전체 구성
+
+## 11/29 2주차 점검
+### 한 일
+- scripts/up.sh 작성: docker compose up -d + routes.sh를 한 번에
+- 전체 재기동·재부팅 테스트, restart: unless-stopped로 컨테이너 자동 복구 확인
+- 재부팅 후에는 routes.sh 수동 실행 필요
+- README 전체 구조로 갱신, .env.example 작성
+### 배운 점
+- 완성된 시스템은 명령 하나(up.sh)로 뜸, 단 재부팅 후 경로는 수동
+
+## 11/30 통신 매트릭스 검증
+### 한 일
+- test-matrix.sh를 8줄로 보강(외부→내부 차단, DMZ→INTRA 제한 등)
+- iptables -Z로 카운터 초기화 후 검증 → 8줄 모두 OK
+- iptables -L -v로 규칙별 pkts + policy DROP 카운터 확인
+- docs/results/matrix-verify.txt, fw-counters.txt 저장
+### 배운 점
+- 허용 통신은 각 규칙 통과, 차단은 policy DROP, 응답은 ESTABLISHED로 통과 (상태 기반 방화벽 증명)
+
+## 12/1 공격 1·2 (포트 스캔 + SYN Flood)
+### 한 일
+- nmap 포트 스캔 → Suricata 탐지 캡처
+- hping3 SYN Flood(-c 3000, 통제된 양) → 탐지 확인
+- rules.sh에 SYN 속도 제한 규칙 추가(limit 25/s burst 50 ACCEPT + 초과 DROP)
+- 차단 전: SYN 3000개 전부 통과 / 차단 후: 419개만 통과, 2581개 DROP
+- curl 200 OK로 정상 접속은 유지됨 확인
+### 배운 점
+- 탐지(IDS)와 차단(방화벽)은 역할이 다름. Suricata는 탐지, iptables rate-limit은 완화
+- 속도 제한은 공격만 거르고 정상 사용자는 통과
+
+## 12/2 공격 3 (SQL 인젝션)
+### 한 일
+- board.php?edit_id= 취약점(입력을 쿼리에 그대로 연결) vs login.php(prepared statement) 비교
+- Kali에서 curl 로그인으로 세션 획득
+- UNION SELECT로 users 테이블 전체
+
