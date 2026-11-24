@@ -61,6 +61,34 @@ services:
       - intra-db
     restart: unless-stopped
 
+  intra-elk:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3
+    container_name: intra-elk
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    volumes:
+      - elk-data:/usr/share/elasticsearch/data
+    networks:
+      intra:
+        ipv4_address: 192.168.153.102
+    restart: unless-stopped
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.15.3
+    container_name: kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://intra-elk:9200
+    ports:
+      - "5601:5601"
+    networks:
+      intra:
+        ipv4_address: 192.168.153.120
+    depends_on:
+      - intra-elk
+    restart: unless-stopped
+
   dmz-web1:
     build: ./docker/web
     container_name: dmz-web1
@@ -118,3 +146,4 @@ volumes:
   db-data:
   uploads:
   sessions:
+  elk-data:
