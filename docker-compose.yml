@@ -2,9 +2,11 @@ services:
   fw:
     build: ./docker/fw
     container_name: fw
-    command: ["sh", "-c", "sh /rules.sh && exec sleep infinity"]
+    command: ["sh", "-c", "sh /start.sh"]
     volumes:
       - ./docker/fw/rules.sh:/rules.sh:ro,z
+      - ./docker/fw/start.sh:/start.sh:ro,z
+      - ./docker/fw/suricata.rules:/suricata.rules:ro,z
     cap_add:
       - NET_ADMIN
       - NET_RAW
@@ -17,6 +19,18 @@ services:
         ipv4_address: 192.168.155.254
       intra:
         ipv4_address: 192.168.153.254
+    restart: unless-stopped
+
+  kali:
+    build: ./docker/kali
+    container_name: kali
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+      - NET_BIND_SERVICE
+    networks:
+      outside:
+        ipv4_address: 192.168.156.123
     restart: unless-stopped
 
   intra-db:

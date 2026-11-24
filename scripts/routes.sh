@@ -9,6 +9,11 @@ set_route() {
 }
 
 # dmz 컨테이너: intra, outside로 갈 땐 fw의 dmz 주소로
+for c in kali; do
+  set_route $c 192.168.155.0/24 192.168.156.254
+  set_route $c 192.168.153.0/24 192.168.156.254
+done
+
 for c in dmz-lb dmz-web1 dmz-web2; do
   set_route $c 192.168.153.0/24 192.168.155.254
   set_route $c 192.168.156.0/24 192.168.155.254

@@ -1,0 +1,8 @@
+# nmap SYN 스캔: 짧은 시간에 연결을 완성하지 않는 SYN이 몰림
+alert tcp 192.168.156.0/24 any -> 192.168.155.0/24 any (msg:"LAB NMAP SYN Scan"; flags:S; flow:stateless; detection_filter:track by_src, count 20, seconds 5; classtype:attempted-recon; sid:4000101; rev:1;)
+
+# SYN Flooding: 한 출발지에서 SYN이 초당 대량
+alert tcp any any -> 192.168.155.0/24 any (msg:"LAB TCP SYN Flood"; flags:S; flow:stateless; detection_filter:track by_dst, count 50, seconds 1; classtype:attempted-dos; sid:4000102; rev:1;)
+
+# SQL Injection: 웹 요청 URI에 union/select, or 1=1 패턴
+alert http any any -> 192.168.155.0/24 any (msg:"LAB SQL Injection union select"; flow:to_server,established; content:"union"; nocase; http_uri; content:"select"; nocase; http_uri; classtype:web-application-attack; sid:4000103; rev:1;)
