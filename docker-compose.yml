@@ -7,6 +7,7 @@ services:
       - ./docker/fw/rules.sh:/rules.sh:ro,z
       - ./docker/fw/start.sh:/start.sh:ro,z
       - ./docker/fw/suricata.rules:/suricata.rules:ro,z
+      - suricata-logs:/var/log/suricata
     cap_add:
       - NET_ADMIN
       - NET_RAW
@@ -89,6 +90,21 @@ services:
       - intra-elk
     restart: unless-stopped
 
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.15.3
+    container_name: filebeat
+    user: root
+    command: ["filebeat", "-e", "--strict.perms=false"]
+    volumes:
+      - ./docker/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro,z
+      - suricata-logs:/var/log/suricata:ro
+    networks:
+      intra:
+        ipv4_address: 192.168.153.130
+    depends_on:
+      - intra-elk
+    restart: unless-stopped
+
   dmz-web1:
     build: ./docker/web
     container_name: dmz-web1
@@ -147,3 +163,4 @@ volumes:
   uploads:
   sessions:
   elk-data:
+  suricata-logs:

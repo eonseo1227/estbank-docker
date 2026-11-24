@@ -1,0 +1,18 @@
+# Suricata eve.json을 읽어서 Elasticsearch로 전송
+filebeat.inputs:
+  - type: filestream
+    id: suricata-eve
+    paths:
+      - /var/log/suricata/eve.json
+    parsers:
+      - ndjson:
+          target: ""
+          add_error_key: true
+
+output.elasticsearch:
+  hosts: ["http://intra-elk:9200"]
+  index: "suricata-%{+yyyy.MM.dd}"
+
+setup.ilm.enabled: false
+setup.template.name: "suricata"
+setup.template.pattern: "suricata-*"
