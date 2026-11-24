@@ -2,6 +2,9 @@ services:
   fw:
     build: ./docker/fw
     container_name: fw
+    command: ["sh", "-c", "sh /rules.sh && exec sleep infinity"]
+    volumes:
+      - ./docker/fw/rules.sh:/rules.sh:ro,z
     cap_add:
       - NET_ADMIN
       - NET_RAW
